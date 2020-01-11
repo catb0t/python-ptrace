@@ -1,11 +1,13 @@
 from logging import info, warning, error
-from ptrace import PtraceError
 from os import waitpid, WNOHANG
-from signal import SIGTRAP, SIGSTOP
 from errno import ECHILD
+import signal
+import time
+
+from ptrace import PtraceError
 from ptrace.debugger import PtraceProcess, ProcessSignal
 from ptrace.binding import HAS_PTRACE_EVENTS
-from time import sleep
+
 if HAS_PTRACE_EVENTS:
     from ptrace.binding.func import (
         PTRACE_O_TRACEFORK, PTRACE_O_TRACEVFORK,
@@ -83,7 +85,7 @@ class PtraceDebugger(object):
         self.dict[pid] = process
         self.list.append(process)
         try:
-            process.waitSignals(SIGTRAP, SIGSTOP)
+            process.waitSignals(signal.SIGTRAP, signal.SIGSTOP)
         except KeyboardInterrupt:
             error(
                 "User interrupt! Force the process %s attach "
@@ -153,9 +155,10 @@ class PtraceDebugger(object):
                 if err.errno == ECHILD:
                     process = self.dict[wanted_pid]
                     return process.processTerminated()
-                else:
-                    raise err
+
+                raise err
             if not blocking and not pid:
+
                 return None
             try:
                 process = self.dict[pid]
@@ -177,8 +180,7 @@ class PtraceDebugger(object):
                         return process
                 if not blocking:
                     return None
-                pause = min(pause * 2, 0.5)
-                sleep(pause)
+                time.sleep( min(pause * 2, 0.5) )
             else:
                 return self._wait_event_pid(pids[0], blocking)
 
@@ -212,13 +214,13 @@ class PtraceDebugger(object):
         (if specified) or any process (default). Return a ProcessSignal object
         or raise an unexpected ProcessEvent.
         """
-        signum = SIGTRAP
+        signum = signal.SIGTRAP
         if self.use_sysgood:
             signum |= 0x80
         if process:
             return self.waitSignals(signum, pid=process.pid)
-        else:
-            return self.waitSignals(signum)
+
+        return self.waitSignals(signum)
 
     def deleteProcess(self, process=None, pid=None):
         """

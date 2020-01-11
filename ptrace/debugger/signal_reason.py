@@ -1,8 +1,8 @@
+import re
 from ptrace.ctypes_tools import formatAddress, formatWordHex
 from ptrace.error import PtraceError
 from ptrace.cpu_info import CPU_I386, CPU_X86_64
 from ptrace.process_tools import formatProcessStatus
-import re
 
 # Find all Intel registers (in upper case)
 if CPU_I386:
@@ -49,14 +49,14 @@ def findMappings(addresses, process, size):
         return mappings
     for address in addresses:
         address_str = formatAddress(address)
-        if 1 < size:
+        if size > 1:
             address_str += "..%s" % formatAddress(address + size - 1)
         found = False
-        for map in process_mappings:
-            if (map.start <= address < map.end) \
-                    or (map.start <= (address + size - 1) < map.end):
+        for m in process_mappings:
+            if (m.start <= address < m.end) \
+                    or (m.start <= (address + size - 1) < m.end):
                 found = True
-                mappings.append("%s is part of %s" % (address_str, map))
+                mappings.append("%s is part of %s" % (address_str, m))
         if not found:
             mappings.append("%s is not mapped in memory" % address_str)
     return mappings
@@ -121,7 +121,8 @@ class InvalidMemoryAccess(SignalInfo):
     PREFIX = "Invalid memory access"
     PREFIX_ADDR = "Invalid memory access to %s"
 
-    def __init__(self, address=None, size=None, instr=None, registers=None, process=None):
+    def __init__(self, address=None, size=None, instr=None, registers=None,
+                 process=None):
         """
         address is an integer or a list of integer
         """
@@ -160,7 +161,8 @@ class InstructionError(SignalInfo):
 
     def __init__(self, address, process=None):
         SignalInfo.__init__(self, "instr_error",
-                            "UNABLE TO EXECUTE CODE AT %s (SEGMENTATION FAULT)" % formatAddress(
+                            "UNABLE TO EXECUTE CODE AT %s (SEGMENTATION FAULT)"
+                            % formatAddress(
                                 address),
                             address=address,
                             process=process,

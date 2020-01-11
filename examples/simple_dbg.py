@@ -1,8 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from ptrace.debugger.debugger import PtraceDebugger
 from ptrace.debugger.child import createChild
 from ptrace.tools import locateProgram
 from sys import stderr, argv, exit
+
 
 def playWithProcess(process):
     # Do anything you want with the process here...
@@ -14,6 +15,7 @@ def playWithProcess(process):
     event = process.waitEvent()
     print("New process event: %s" % event)
 
+
 def traceProgram(arguments):
     # Copy the environment variables
     env = None
@@ -23,6 +25,7 @@ def traceProgram(arguments):
 
     # Create the child process
     return createChild(arguments, False, env)
+
 
 def main():
     # Check the command line
@@ -58,4 +61,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

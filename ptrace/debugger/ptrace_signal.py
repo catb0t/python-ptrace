@@ -1,14 +1,15 @@
-from logging import error
-from ptrace.disasm import HAS_DISASSEMBLER
-from signal import SIGFPE, SIGSEGV, SIGABRT
+import re
+import signal
+import logging
+from ptrace import disasm
 try:
-    from signal import SIGCHLD
+    from signal import SIGCHLD as _SIGCHLD
 except ImportError:
-    SIGCHLD = None
+    signal.SIGCHLD = None
 try:
-    from signal import SIGBUS
+    from signal import SIGBUS as _SIGBUS
 except ImportError:
-    SIGBUS = None
+    signal.SIGBUS = None
 from ptrace.os_tools import RUNNING_LINUX
 from ptrace.cpu_info import CPU_64BITS
 from ptrace.debugger import ProcessEvent
@@ -19,7 +20,6 @@ from ptrace.debugger.signal_reason import (
     InvalidMemoryAccess, InvalidRead, InvalidWrite,
     InstructionError, ChildExit)
 from ptrace.debugger.parse_expr import parseExpression
-import re
 
 # Match a pointer dereference (e.g. "DWORD [EDX+0x8]")
 DEREF_REGEX = r'(?P<deref_size>(BYTE|WORD|DWORD|DQWORD) )?\[(?P<deref>[^]]+)\]'
@@ -50,7 +50,7 @@ def evalFaultAddress(process, match):
     try:
         return parseExpression(process, expr)
     except ValueError as err:
-        error("err: %s" % err)
+        logging.error("err: %s" % err)
         return None
 
 
@@ -64,18 +64,18 @@ class ProcessSignal(ProcessEvent):
         self.reason = None
 
     def _analyze(self):
-        if self.signum in (SIGSEGV, SIGBUS):
+        if self.signum in (signal.SIGSEGV, signal.SIGBUS):
             self.memoryFault()
-        elif self.signum == SIGFPE:
+        elif self.signum == signal.SIGFPE:
             self.mathError()
-        elif self.signum == SIGCHLD:
+        elif self.signum == signal.SIGCHLD:
             self.childExit()
-        elif self.signum == SIGABRT:
+        elif self.signum == signal.SIGABRT:
             self.reason = Abort()
         return self.reason
 
     def getInstruction(self):
-        if not HAS_DISASSEMBLER:
+        if not disasm.HAS_DISASSEMBLER:
             return None
         try:
             return self.process.disassembleOne()
@@ -157,8 +157,8 @@ class ProcessSignal(ProcessEvent):
     def getSignalInfo(self):
         if RUNNING_LINUX:
             return self.process.getsiginfo()
-        else:
-            return None
+
+        return None
 
     def memoryFault(self):
         # Get fault
@@ -187,7 +187,7 @@ class ProcessSignal(ProcessEvent):
         stack = self.process.findStack()
         if stack:
             sp = self.process.getStackPointer()
-            if not (stack.start <= sp <= stack.end):
+            if not stack.start <= sp <= stack.end:
                 self.reason = StackOverflow(
                     sp, stack, instr=instr, process=self.process)
                 return
@@ -222,7 +222,7 @@ class ProcessSignal(ProcessEvent):
     def display(self, log=None):
         self._analyze()
         if not log:
-            log = error
+            log = logging.error
         log("-" * 60)
         log("PID: %s" % self.process.pid)
         log("Signal: %s" % self.name)
